@@ -1,0 +1,13 @@
+.git
+.agents
+.specify
+.env
+node_modules
+**/node_modules
+**/dist
+**/coverage
+apps/mobile/.dart_tool
+apps/mobile/build
+output
+tmp
+*.log

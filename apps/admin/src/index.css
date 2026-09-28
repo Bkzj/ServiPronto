@@ -1,0 +1,10 @@
+:root { font-family: "Nunito Sans", "Segoe UI", system-ui, sans-serif; color: #152238; background: #f4f7fb; font-synthesis: none; --blue: #1467b1; --orange: #f57c22; --orange-deep: #d94e14; --surface: #ffffff; --muted: #627086; --border: #dbe4ef; --danger: #ba3b2b; --shadow: 0 22px 65px rgba(31, 67, 104, .11); }
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; min-height: 100vh; }
+button:focus-visible { outline: 3px solid color-mix(in srgb, var(--orange) 70%, white); outline-offset: 3px; }
+@media (prefers-color-scheme: dark) {
+  :root { color: #edf4fb; background: #101925; --blue: #69a8dc; --orange: #ff9b59; --orange-deep: #e87131; --surface: #182536; --muted: #a9b8c9; --border: #2a3b50; --shadow: 0 22px 65px rgba(0,0,0,.25); }
+  .status-icon.connected { background: #123e35; color: #7de2bd; }
+  .status-icon.disconnected { background: #4a2725; color: #ffaaa0; }
+  button { background: #256fae; }
+}

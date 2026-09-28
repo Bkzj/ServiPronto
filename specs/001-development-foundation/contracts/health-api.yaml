@@ -1,0 +1,42 @@
+openapi: 3.1.0
+info:
+  title: ServiPronto Development Health API
+  version: 1.0.0
+paths:
+  /api/v1/health/live:
+    get:
+      summary: Confirma que el proceso de API responde
+      responses:
+        '200':
+          description: Proceso disponible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+  /api/v1/health/ready:
+    get:
+      summary: Confirma que la API puede consultar PostgreSQL
+      responses:
+        '200':
+          description: API lista
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+        '503':
+          description: Dependencia no disponible
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      required: [status, service, timestamp]
+      properties:
+        status:
+          type: string
+          enum: [ok, unavailable]
+        service:
+          type: string
+          enum: [api, database]
+        timestamp:
+          type: string
+          format: date-time

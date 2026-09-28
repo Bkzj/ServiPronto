@@ -1,0 +1,339 @@
+openapi: 3.1.0
+info:
+  title: ServiPronto — alta y revisión inicial
+  version: 0.3.0
+  description: Contrato de alta y revisión inicial. Un teléfono identifica una sola identidad de acceso, que puede tener una cuenta Cliente y una Proveedor independientes.
+paths:
+  /api/v1/app-auth/register:
+    post:
+      summary: Inicia una identidad y desafío telefónico de registro
+      description: Un segundo correo no puede registrar un teléfono ya asociado a otra identidad, aunque la primera esté pendiente de verificación.
+      requestBody:
+        $ref: '#/components/requestBodies/Registration'
+      responses:
+        '201':
+          description: Desafío creado sin código ni sesión
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Challenge' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/app-auth/verify-registration:
+    post:
+      summary: Confirma el código temporal y devuelve sesión de aplicación
+      requestBody:
+        $ref: '#/components/requestBodies/Verification'
+      responses:
+        '200':
+          description: Teléfono confirmado y sesión creada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Session' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/v1/app-auth/login:
+    post:
+      summary: Valida correo y contraseña e inicia desafío de sesión
+      requestBody:
+        $ref: '#/components/requestBodies/Login'
+      responses:
+        '200':
+          description: Desafío creado sin sesión
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Challenge' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/v1/app-auth/verify-login:
+    post:
+      summary: Confirma el desafío y devuelve sesión de aplicación
+      requestBody:
+        $ref: '#/components/requestBodies/Verification'
+      responses:
+        '200':
+          description: Sesión creada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Session' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/v1/onboarding/client:
+    get:
+      summary: Lee el borrador o perfil Cliente de la sesión APP para revisión
+      description: Devuelve únicamente la cuenta Cliente de la identidad autenticada; el correo y teléfono proceden de la identidad verificada.
+      security: [{ AppBearer: [] }]
+      responses:
+        '200':
+          description: Borrador o perfil completo del titular; id es null hasta el primer guardado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ClientProfile' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    put:
+      summary: Crea o actualiza el borrador de perfil Cliente
+      description: Acepta solo los campos editables enviados, conserva los demás y mantiene el ID al repetir el PUT. Correo y teléfono se leen de la identidad verificada y nunca se reemplazan desde esta ruta. isComplete pasa a true cuando nombre, apellido, fecha de nacimiento y dirección están completos; la identidad aporta correo y teléfono. Una misma identidad puede tener además una cuenta Proveedor independiente.
+      security: [{ AppBearer: [] }]
+      requestBody: { $ref: '#/components/requestBodies/ClientDraft' }
+      responses:
+        '200':
+          description: Perfil Cliente creado o actualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ClientProfile' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/onboarding/provider:
+    put:
+      summary: Crea o actualiza el borrador de perfil Proveedor
+      description: El PUT repetido conserva el ID; una misma identidad puede crear también una cuenta Cliente con su teléfono verificado.
+      security: [{ AppBearer: [] }]
+      requestBody: { $ref: '#/components/requestBodies/ProviderDraft' }
+      responses:
+        '200':
+          description: Perfil Proveedor creado o actualizado en estado INCOMPLETE
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProviderProfile' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/onboarding/provider/submit:
+    post:
+      summary: Envía un proveedor completo a revisión manual
+      security: [{ AppBearer: [] }]
+      responses:
+        '200':
+          description: Perfil en estado IN_REVIEW; no se publica
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProviderProfile' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/admin/provider-reviews:
+    get:
+      summary: Lista perfiles de proveedor en revisión
+      security: [{ AdminBearer: [] }]
+      responses:
+        '200':
+          description: Cola administrativa
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [providers]
+                properties:
+                  providers:
+                    type: array
+                    items: { $ref: '#/components/schemas/ProviderProfile' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/v1/admin/provider-reviews/{providerId}/decision:
+    post:
+      summary: Aprueba, pide cambios o rechaza una presentación
+      security: [{ AdminBearer: [] }]
+      parameters:
+        - name: providerId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody: { $ref: '#/components/requestBodies/ReviewDecision' }
+      responses:
+        '200':
+          description: Decisión guardada e incorporada al historial
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReviewResult' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+components:
+  securitySchemes:
+    AppBearer: { type: http, scheme: bearer, bearerFormat: JWT, description: Sesión de aplicación verificada }
+    AdminBearer: { type: http, scheme: bearer, bearerFormat: JWT, description: Sesión de administración }
+  responses:
+    BadRequest:
+      description: Datos inválidos o motivo obligatorio ausente o en blanco
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Unauthorized:
+      description: Credenciales, desafío o sesión inválidos; no incluye token
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    NotFound:
+      description: Perfil o presentación inexistente
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Conflict:
+      description: Teléfono ya asociado a otra identidad o estado/cuenta incompatibles
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+  requestBodies:
+    Registration:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [email, password, phone]
+            properties:
+              email: { type: string, format: email }
+              password: { type: string, format: password }
+              phone: { type: string, description: E.164 }
+    Verification:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [challengeId, code]
+            properties:
+              challengeId: { type: string }
+              code: { type: string, pattern: '^\d{6}$' }
+    Login:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [email, password]
+            properties:
+              email: { type: string, format: email }
+              password: { type: string, format: password }
+    ClientDraft:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ClientDraft' }
+    ProviderDraft:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ProviderDraft' }
+    ReviewDecision:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [decision]
+            properties:
+              decision: { type: string, enum: [APPROVED, CHANGES_REQUIRED, REJECTED] }
+              reason: { type: string, pattern: '\S' }
+            allOf:
+              - if:
+                  properties:
+                    decision: { enum: [CHANGES_REQUIRED, REJECTED] }
+                then:
+                  required: [reason]
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [statusCode, error, message]
+      properties:
+        statusCode: { type: integer, minimum: 400, maximum: 499 }
+        error: { type: string }
+        message:
+          oneOf:
+            - { type: string }
+            - { type: array, minItems: 1, items: { type: string } }
+      additionalProperties: false
+    Challenge:
+      type: object
+      required: [challengeId, expiresAt]
+      properties:
+        challengeId: { type: string }
+        expiresAt: { type: string, format: date-time }
+      additionalProperties: false
+    Session:
+      type: object
+      required: [accessToken, profile]
+      properties:
+        accessToken: { type: string }
+        profile:
+          type: object
+          required: [id, email, phone]
+          properties:
+            id: { type: string }
+            email: { type: string, format: email }
+            phone: { type: string }
+      additionalProperties: false
+    ClientDraft:
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        firstName: { type: string, minLength: 1, pattern: '\S' }
+        lastName: { type: string, minLength: 1, pattern: '\S' }
+        birthDate: { type: string, format: date }
+        address:
+          type: object
+          required: [street, number, city]
+          additionalProperties: false
+          properties:
+            street: { type: string, minLength: 1, pattern: '\S' }
+            number: { type: string, minLength: 1, pattern: '\S' }
+            city: { type: string, minLength: 1, pattern: '\S' }
+    ClientProfile:
+      type: object
+      required: [id, firstName, lastName, email, phone, birthDate, address, isComplete]
+      additionalProperties: false
+      properties:
+        id: { type: [string, 'null'], format: uuid, description: 'Null hasta guardar el primer paso' }
+        firstName: { type: [string, 'null'] }
+        lastName: { type: [string, 'null'] }
+        email: { type: string, format: email, readOnly: true }
+        phone: { type: string, description: Teléfono de identidad verificada; solo visible al titular, readOnly: true }
+        birthDate: { type: [string, 'null'], format: date }
+        address:
+          oneOf:
+            - { type: 'null' }
+            - type: object
+              required: [street, number, city]
+              additionalProperties: false
+              properties:
+                street: { type: string }
+                number: { type: string }
+                city: { type: string }
+        isComplete: { type: boolean, description: Indica si el perfil contiene todos los datos necesarios, readOnly: true }
+    ProviderDraft:
+      type: object
+      required: [firstName, lastName, phone, email, categoryId, tasks, modality, coverage, availability, experience, indicativePrice]
+      properties:
+        firstName: { type: string }
+        lastName: { type: string }
+        phone: { type: string }
+        email: { type: string, format: email }
+        categoryId: { type: string }
+        tasks: { type: array, minItems: 1, items: { type: string } }
+        modality: { type: string }
+        coverage:
+          type: object
+          required: [city]
+          properties:
+            city: { type: string }
+        availability: { type: string }
+        experience: { type: string }
+        indicativePrice: { type: number, minimum: 0 }
+        declaredCredential: { type: string, description: Texto voluntario no verificado; sin archivos }
+    ProviderProfile:
+      allOf:
+        - { $ref: '#/components/schemas/ProviderDraft' }
+        - type: object
+          required: [id, status]
+          properties:
+            id: { type: string }
+            status: { type: string, enum: [INCOMPLETE, IN_REVIEW, CHANGES_REQUIRED, APPROVED, REJECTED, SUSPENDED] }
+            submittedAt: { type: string, format: date-time }
+    ReviewResult:
+      type: object
+      required: [providerId, status]
+      properties:
+        providerId: { type: string, format: uuid }
+        status: { type: string, enum: [APPROVED, CHANGES_REQUIRED, REJECTED] }
+        reason: { type: string }

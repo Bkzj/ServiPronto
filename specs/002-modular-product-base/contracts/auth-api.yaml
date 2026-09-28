@@ -1,0 +1,26 @@
+openapi: 3.1.0
+info: { title: ServiPronto Admin Foundation API, version: 1.0.0 }
+paths:
+  /api/v1/auth/login:
+    post:
+      summary: Inicia una sesión administrativa local
+      responses:
+        '200': { description: Sesión iniciada }
+        '401': { description: Credenciales inválidas }
+  /api/v1/auth/me:
+    get:
+      summary: Devuelve el perfil de la sesión
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Perfil permitido }
+        '401': { description: Sesión inválida }
+  /api/v1/admin/modules:
+    get:
+      summary: Lista fronteras modulares y estado honesto
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Módulos base }
+        '401': { description: Sesión inválida }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
